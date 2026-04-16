@@ -36,7 +36,7 @@ extension GRDBRepository {
     public func history(for id: Model.ID, limit: Int? = nil, historyTable: String? = nil) throws -> [HistoryEntry<Model>] {
         let tableName = historyTable ?? "\(Model.databaseTableName)_history"
         return try dbWriter.read { db in
-            var sql = "SELECT snapshot, changedAt, action FROM \"\(tableName)\" WHERE modelId = ? ORDER BY changedAt DESC"
+            var sql = "SELECT snapshot, changedAt, action FROM \"\(tableName)\" WHERE modelId = ? ORDER BY rowid DESC"
             if let limit { sql += " LIMIT \(limit)" }
             let rows = try Row.fetchAll(db, sql: sql, arguments: ["\(id)"])
             return try rows.compactMap { row in
