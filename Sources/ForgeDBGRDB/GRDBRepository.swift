@@ -17,6 +17,113 @@ where Model: Codable & Sendable & Identifiable & FetchableRecord & PersistableRe
     }
 }
 
+extension GRDBRepository: QueryableRepository {
+    public func fetch(
+        filter: (any SQLSpecificExpressible)?,
+        sort: (any SQLOrderingTerm)?,
+        limit: Int?
+    ) throws -> [Model] {
+        try dbWriter.read { db in
+            var request = Model.all()
+            if let filter { request = request.filter(filter) }
+            if let sort { request = request.order(sort) }
+            if let limit { request = request.limit(limit) }
+            return try request.fetchAll(db)
+        }
+    }
+
+    public func first(
+        filter: (any SQLSpecificExpressible)?,
+        sort: (any SQLOrderingTerm)?
+    ) throws -> Model? {
+        try dbWriter.read { db in
+            var request = Model.all()
+            if let filter { request = request.filter(filter) }
+            if let sort { request = request.order(sort) }
+            return try request.fetchOne(db)
+        }
+    }
+
+    public func count(
+        filter: (any SQLSpecificExpressible)?
+    ) throws -> Int {
+        try dbWriter.read { db in
+            if let filter {
+                return try Model.filter(filter).fetchCount(db)
+            }
+            return try Model.fetchCount(db)
+        }
+    }
+
+    public func delete(
+        filter: (any SQLSpecificExpressible)?
+    ) throws {
+        try dbWriter.unsafeReentrantWrite { db in
+            if let filter {
+                _ = try Model.filter(filter).deleteAll(db)
+            } else {
+                _ = try Model.deleteAll(db)
+            }
+        }
+    }
+
+    public func stream(
+        filter: (any SQLSpecificExpressible)?,
+        sort: (any SQLOrderingTerm)?
+    ) -> AsyncStream<[Model]> {
+        // SQLSpecificExpressible and SQLOrderingTerm are not Sendable, but they are
+        // value-semantic SQL expressions consumed synchronously on GRDB's serial queue.
+        // nonisolated(unsafe) is safe here because the values are read-only and only
+        // accessed within ValueObservation.tracking which runs on GRDB's serial queue.
+        nonisolated(unsafe) let capturedFilter = filter
+        nonisolated(unsafe) let capturedSort = sort
+
+        let observation = ValueObservation.tracking { db in
+            var request = Model.all()
+            if let filter = capturedFilter { request = request.filter(filter) }
+            if let sort = capturedSort { request = request.order(sort) }
+            return try request.fetchAll(db)
+        }
+
+        // Use the async sequence API to avoid the @MainActor start(in:onError:onChange:) overload.
+        let values = observation.values(in: dbWriter)
+        return AsyncStream { continuation in
+            let task = Task {
+                do {
+                    for try await value in values {
+                        continuation.yield(value)
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish()
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    public func streamAll() -> AsyncStream<[Model]> {
+        stream(filter: nil, sort: nil)
+    }
+
+    public func enumerate(
+        filter: (any SQLSpecificExpressible)?,
+        sort: (any SQLOrderingTerm)?,
+        batchSize: Int,
+        body: @Sendable (Model) throws -> Void
+    ) throws {
+        try dbWriter.read { db in
+            var request = Model.all()
+            if let filter { request = request.filter(filter) }
+            if let sort { request = request.order(sort) }
+            let cursor = try request.fetchCursor(db)
+            while let model = try cursor.next() {
+                try body(model)
+            }
+        }
+    }
+}
+
 extension GRDBRepository: Repository {
     public func get(_ id: Model.ID) throws -> Model? {
         try dbWriter.read { db in
