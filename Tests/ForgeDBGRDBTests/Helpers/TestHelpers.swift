@@ -140,6 +140,37 @@ func makeExpirableManager() throws -> DatabaseManager {
     }
 }
 
+// MARK: - ArchivableRecord
+
+struct ArchivableRecord: Codable, Sendable, Identifiable, Equatable, FetchableRecord, PersistableRecord, Archivable {
+    static let databaseTableName = "archivableRecord"
+
+    var id: UUID
+    var name: String
+    var archivedAt: Date? = nil
+
+    enum Column: String, CodingKey, ColumnExpression {
+        case id, name, archivedAt
+    }
+
+    init(id: UUID = UUID(), name: String) {
+        self.id = id
+        self.name = name
+    }
+}
+
+func makeArchivableManager() throws -> DatabaseManager {
+    try DatabaseManager.inMemory { migrator in
+        migrator.registerMigration("v1") { db in
+            try db.create(table: "archivableRecord") { t in
+                t.primaryKey("id", .text)
+                t.column("name", .text).notNull()
+                t.column("archivedAt", .datetime)
+            }
+        }
+    }
+}
+
 // MARK: - ComputedRecord
 
 struct ComputedRecord: Codable, Sendable, Identifiable, Equatable, FetchableRecord, PersistableRecord, ComputedColumns {
