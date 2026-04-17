@@ -17,6 +17,30 @@ where Model: Codable & Sendable & Identifiable & FetchableRecord & PersistableRe
     }
 }
 
+// MARK: - Internal db-accepting methods for composition within a single transaction
+
+extension GRDBRepository {
+    func _save(_ model: Model, in db: Database) throws {
+        try model.save(db)
+    }
+
+    func _delete(_ model: Model, in db: Database) throws {
+        _ = try model.delete(db)
+    }
+
+    func _deleteByID(_ id: Model.ID, in db: Database) throws {
+        _ = try Model.deleteOne(db, key: id)
+    }
+
+    func _exists(_ id: Model.ID, in db: Database) throws -> Bool {
+        try Model.exists(db, key: id)
+    }
+
+    func _deleteAll(in db: Database) throws {
+        _ = try Model.deleteAll(db)
+    }
+}
+
 extension GRDBRepository: QueryableRepository {
     public func fetch(
         filter: (any SQLSpecificExpressible)?,
@@ -58,7 +82,7 @@ extension GRDBRepository: QueryableRepository {
     public func delete(
         filter: (any SQLSpecificExpressible)?
     ) throws {
-        try dbWriter.unsafeReentrantWrite { db in
+        try dbWriter.write { db in
             if let filter {
                 _ = try Model.filter(filter).deleteAll(db)
             } else {
@@ -131,12 +155,14 @@ extension GRDBRepository: Repository {
         }
     }
 
+    // Uses unsafeReentrantWrite so it can be called inside transaction() blocks.
     public func save(_ model: Model) throws {
         try dbWriter.unsafeReentrantWrite { db in
             try model.save(db)
         }
     }
 
+    // Uses unsafeReentrantWrite so it can be called inside transaction() blocks.
     public func save(_ models: [Model]) throws {
         try dbWriter.unsafeReentrantWrite { db in
             for model in models {
@@ -145,12 +171,14 @@ extension GRDBRepository: Repository {
         }
     }
 
+    // Uses unsafeReentrantWrite so it can be called inside transaction() blocks.
     public func delete(_ model: Model) throws {
         try dbWriter.unsafeReentrantWrite { db in
             _ = try model.delete(db)
         }
     }
 
+    // Uses unsafeReentrantWrite so it can be called inside transaction() blocks.
     public func delete(_ id: Model.ID) throws {
         try dbWriter.unsafeReentrantWrite { db in
             _ = try Model.deleteOne(db, key: id)
@@ -169,6 +197,7 @@ extension GRDBRepository: Repository {
         }
     }
 
+    // Uses unsafeReentrantWrite so it can be called inside transaction() blocks.
     public func deleteAll() throws {
         try dbWriter.unsafeReentrantWrite { db in
             _ = try Model.deleteAll(db)
@@ -181,6 +210,9 @@ extension GRDBRepository: Repository {
         }
     }
 
+    /// Execute a block inside a savepoint. The block can call public mutating
+    /// methods (save, delete, deleteAll) which use `unsafeReentrantWrite` to
+    /// allow reentrancy from within this write context.
     public func transaction(_ block: @Sendable () throws -> Void) throws {
         try dbWriter.unsafeReentrantWrite { db in
             try db.inSavepoint {

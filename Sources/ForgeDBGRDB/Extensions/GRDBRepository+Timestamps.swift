@@ -4,19 +4,30 @@ import ForgeDB
 
 extension GRDBRepository where Model: Timestampable {
     public func saveWithTimestamps(_ model: Model) throws {
-        var mutable = model
-        let now = Date.now
-        let isInsert = try !exists(model.id)
-        if isInsert {
-            mutable.createdAt = now
+        try dbWriter.write { db in
+            var mutable = model
+            let now = Date.now
+            let isInsert = try !self._exists(model.id, in: db)
+            if isInsert {
+                mutable.createdAt = now
+            }
+            mutable.updatedAt = now
+            try self._save(mutable, in: db)
         }
-        mutable.updatedAt = now
-        try save(mutable)
     }
 
     public func saveWithTimestamps(_ models: [Model]) throws {
-        for model in models {
-            try saveWithTimestamps(model)
+        try dbWriter.write { db in
+            let now = Date.now
+            for model in models {
+                var mutable = model
+                let isInsert = try !self._exists(model.id, in: db)
+                if isInsert {
+                    mutable.createdAt = now
+                }
+                mutable.updatedAt = now
+                try self._save(mutable, in: db)
+            }
         }
     }
 }

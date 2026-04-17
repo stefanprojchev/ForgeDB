@@ -7,9 +7,9 @@ private let logger = Logger(subsystem: "ForgeDB", category: "SQL")
 extension DatabaseManager {
     /// Enable SQL query logging in DEBUG builds.
     /// Logs all queries via OSLog and highlights slow queries exceeding the threshold.
-    public func enableQueryLogging(slowQueryThreshold: TimeInterval = 0.1) {
+    public func enableQueryLogging(slowQueryThreshold: TimeInterval = 0.1) throws {
         #if DEBUG
-        dbWriter.writeWithoutTransaction { db in
+        try dbWriter.write { db in
             db.trace(options: [.statement, .profile]) { event in
                 switch event {
                 case .statement(let statement):

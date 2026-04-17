@@ -20,12 +20,13 @@ extension GRDBRepository {
     /// `id` (text, primary key), `modelId` (text), `snapshot` (text/blob), `changedAt` (datetime), `action` (text)
     public func saveWithHistory(_ model: Model, historyTable: String? = nil) throws {
         let tableName = historyTable ?? "\(Model.databaseTableName)_history"
-        let isInsert = try !exists(model.id)
-        try save(model)
-        let action: HistoryAction = isInsert ? .insert : .update
+        try validateTableName(tableName)
         let snapshotData = try JSONEncoder().encode(model)
         let snapshotString = String(data: snapshotData, encoding: .utf8) ?? ""
-        try dbWriter.unsafeReentrantWrite { db in
+        try dbWriter.write { db in
+            let isInsert = try !self._exists(model.id, in: db)
+            try self._save(model, in: db)
+            let action: HistoryAction = isInsert ? .insert : .update
             try db.execute(
                 sql: "INSERT INTO \"\(tableName)\" (id, modelId, snapshot, changedAt, action) VALUES (?, ?, ?, ?, ?)",
                 arguments: [UUID().uuidString, "\(model.id)", snapshotString, Date.now, action.rawValue]
@@ -35,6 +36,7 @@ extension GRDBRepository {
 
     public func history(for id: Model.ID, limit: Int? = nil, historyTable: String? = nil) throws -> [HistoryEntry<Model>] {
         let tableName = historyTable ?? "\(Model.databaseTableName)_history"
+        try validateTableName(tableName)
         return try dbWriter.read { db in
             var sql = "SELECT snapshot, changedAt, action FROM \"\(tableName)\" WHERE modelId = ? ORDER BY rowid DESC"
             if let limit { sql += " LIMIT \(limit)" }

@@ -56,6 +56,12 @@ where Model.ID: Hashable & Sendable {
     }
 
     public func transaction(_ block: @Sendable () throws -> Void) throws {
-        try block()
+        let snapshot = storage.withLock { $0 }
+        do {
+            try block()
+        } catch {
+            storage.withLock { $0 = snapshot }
+            throw error
+        }
     }
 }

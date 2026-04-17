@@ -1,5 +1,6 @@
 import Foundation
 import GRDB
+import ForgeDB
 
 public struct DBStats: Sendable {
     public let fileSizeBytes: UInt64
@@ -14,6 +15,8 @@ public struct TableStats: Sendable {
 extension DatabaseManager {
     public func stats() throws -> DBStats {
         try dbWriter.read { db in
+            // Table names come from sqlite_master so they're trusted,
+            // but we still quote them with double quotes for safety.
             let tables = try String.fetchAll(db, sql: """
                 SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'grdb_%'
                 """)
@@ -41,7 +44,10 @@ extension DatabaseManager {
     }
 
     public func counts(for tables: [String]) throws -> [String: Int] {
-        try dbWriter.read { db in
+        for table in tables {
+            try validateTableName(table)
+        }
+        return try dbWriter.read { db in
             var result: [String: Int] = [:]
             for table in tables {
                 let count = try Int.fetchOne(db, sql: "SELECT count(*) FROM \"\(table)\"") ?? 0

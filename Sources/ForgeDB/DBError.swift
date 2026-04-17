@@ -1,5 +1,8 @@
 import Foundation
 
+/// ForgeDB-specific error conditions.
+/// GRDB errors (constraint violations, SQL errors, etc.) pass through unwrapped.
+/// DBError is used for ForgeDB-level validation and domain errors.
 public enum DBError: LocalizedError, Sendable {
     case modelNotFound(id: String)
     case saveFailed(underlying: String)
@@ -7,6 +10,7 @@ public enum DBError: LocalizedError, Sendable {
     case fetchFailed(underlying: String)
     case migrationFailed(underlying: String)
     case transactionFailed(underlying: String)
+    case invalidTableName(String)
 
     public var errorDescription: String? {
         switch self {
@@ -22,6 +26,17 @@ public enum DBError: LocalizedError, Sendable {
             "Migration failed: \(underlying)"
         case .transactionFailed(let underlying):
             "Transaction failed: \(underlying)"
+        case .invalidTableName(let name):
+            "Invalid table name: '\(name)'. Table names must match [a-zA-Z_][a-zA-Z0-9_]*"
         }
+    }
+}
+
+/// Validates that a table name contains only safe identifier characters.
+/// Rejects anything that doesn't match `^[a-zA-Z_][a-zA-Z0-9_]*$`.
+public func validateTableName(_ name: String) throws {
+    let pattern = /^[a-zA-Z_][a-zA-Z0-9_]*$/
+    guard name.wholeMatch(of: pattern) != nil else {
+        throw DBError.invalidTableName(name)
     }
 }
