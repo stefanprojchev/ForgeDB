@@ -89,4 +89,18 @@ struct GRDBRepositoryTests {
         }
         #expect(try repo.count() == 2)
     }
+
+    @Test func transactionRollbackOnError() throws {
+        let repo = try GRDBRepository<TestRecord>(manager: makeTestManager())
+        try repo.save(TestRecord(name: "Existing"))
+
+        struct TestError: Error {}
+        #expect(throws: TestError.self) {
+            try repo.transaction {
+                try repo.save(TestRecord(name: "New"))
+                throw TestError()
+            }
+        }
+        #expect(try repo.count() == 1)
+    }
 }

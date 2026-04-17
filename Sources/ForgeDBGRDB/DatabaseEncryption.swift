@@ -1,3 +1,7 @@
+// TODO: Integrate with GRDB-encrypted (SQLCipher) package variant.
+// This type defines the API surface; actual encryption requires replacing
+// the GRDB dependency with the encrypted variant in Package.swift.
+
 import Foundation
 
 /// Configuration for database encryption.

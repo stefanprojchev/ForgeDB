@@ -21,7 +21,10 @@ struct ArchiveTests {
         let record = ArchivableRecord(name: "Test")
         try repo.save(record)
         try repo.archive(record)
-        try repo.unarchive(record)
+
+        let archived = try repo.get(record.id)!
+        try repo.unarchive(archived)
+
         let result = try repo.get(record.id)
         #expect(result?.archivedAt == nil)
     }
@@ -48,5 +51,21 @@ struct ArchiveTests {
         let result = try repo.fetchArchived()
         #expect(result.count == 1)
         #expect(result[0].name == "Archived")
+    }
+
+    @Test func archiveWithFilter() throws {
+        let repo = try GRDBRepository<ArchivableRecord>(manager: makeArchivableManager())
+        try repo.save(ArchivableRecord(name: "Keep"))
+        try repo.save(ArchivableRecord(name: "Archive Me"))
+        try repo.save(ArchivableRecord(name: "Archive Me Too"))
+
+        try repo.archive(filter: ArchivableRecord.Column.name != "Keep")
+
+        let active = try repo.fetchActive()
+        #expect(active.count == 1)
+        #expect(active[0].name == "Keep")
+
+        let archived = try repo.fetchArchived()
+        #expect(archived.count == 2)
     }
 }

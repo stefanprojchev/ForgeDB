@@ -15,11 +15,16 @@ extension GRDBRepository {
         in ftsTable: String,
         limit: Int? = nil
     ) throws -> [Model] {
+        try validateTableName(Model.databaseTableName)
         try validateTableName(ftsTable)
         guard let pattern = FTS5Pattern(matchingAllPrefixesIn: query) else {
             return []
         }
         return try dbWriter.read { db in
+            // Model.databaseTableName is a compile-time constant defined by the developer
+            // on the concrete Model type (e.g. static let databaseTableName = "records").
+            // It is safe to interpolate here because validateTableName() above has already
+            // verified ftsTable, and databaseTableName is not user-supplied at runtime.
             let tableName = Model.databaseTableName
             let quotedTable = "\"\(tableName)\""
             let quotedFTS = "\"\(ftsTable)\""

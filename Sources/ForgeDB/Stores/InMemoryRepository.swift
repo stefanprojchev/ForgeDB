@@ -39,6 +39,14 @@ where Model.ID: Hashable & Sendable {
         _ = storage.withLock { $0.removeValue(forKey: id) }
     }
 
+    public func delete(_ ids: [Model.ID]) throws {
+        storage.withLock { state in
+            for id in ids {
+                state.removeValue(forKey: id)
+            }
+        }
+    }
+
     public func exists(_ id: Model.ID) throws -> Bool {
         storage.withLock { $0[id] != nil }
     }
@@ -55,6 +63,12 @@ where Model.ID: Hashable & Sendable {
         storage.withLock { $0.count }
     }
 
+    /// Executes the block and rolls back all changes if it throws.
+    ///
+    /// **Isolation caveat:** the snapshot-and-restore approach provides rollback-on-error
+    /// but does NOT provide isolation from concurrent threads. Another thread can observe
+    /// intermediate writes made inside the block before a rollback occurs. If you need
+    /// true isolation, use a serial actor or a GRDB-backed repository.
     public func transaction(_ block: @Sendable () throws -> Void) throws {
         let snapshot = storage.withLock { $0 }
         do {

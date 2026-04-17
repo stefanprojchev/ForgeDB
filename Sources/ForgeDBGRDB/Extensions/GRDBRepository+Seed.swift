@@ -11,11 +11,9 @@ extension GRDBRepository {
         }
         let data = try Data(contentsOf: url)
         let models = try JSONDecoder().decode([Model].self, from: data)
-        try dbWriter.unsafeReentrantWrite { db in
+        try dbWriter.write { db in
             for model in models {
-                if try !Model.exists(db, key: model.id) {
-                    try model.insert(db)
-                }
+                try model.insert(db, onConflict: .ignore)
             }
         }
     }

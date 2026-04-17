@@ -20,7 +20,7 @@ extension GRDBRepository {
     ) throws {
         let models = try JSONDecoder().decode([Model].self, from: data)
         let total = models.count
-        try dbWriter.unsafeReentrantWrite { db in
+        try dbWriter.write { db in
             if strategy == .replace {
                 _ = try Model.deleteAll(db)
             }

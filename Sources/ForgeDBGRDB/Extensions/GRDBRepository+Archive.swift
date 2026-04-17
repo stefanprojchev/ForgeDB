@@ -12,15 +12,9 @@ extension GRDBRepository where Model: Archivable {
         try save(mutable)
     }
 
-    /// Archive all records matching the given filter.
     public func archive(filter: any SQLSpecificExpressible) throws {
-        let models = try fetch(filter: filter, sort: nil, limit: nil)
-        try dbWriter.write { db in
-            for model in models {
-                var mutable = model
-                mutable.archivedAt = .now
-                try self._save(mutable, in: db)
-            }
+        _ = try dbWriter.write { db in
+            try Model.filter(filter).updateAll(db, [Column("archivedAt").set(to: Date.now)])
         }
     }
 

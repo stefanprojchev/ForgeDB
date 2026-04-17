@@ -8,13 +8,7 @@ public final class DatabaseManager: Sendable {
         path: String,
         migrations: (inout DatabaseMigrator) -> Void
     ) throws {
-        let directory = URL(filePath: path).deletingLastPathComponent()
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let dbQueue = try DatabaseQueue(path: path)
-        self.dbWriter = dbQueue
-        var migrator = DatabaseMigrator()
-        migrations(&migrator)
-        try migrator.migrate(dbQueue)
+        self.dbWriter = try DatabaseManager.createAndMigrate(path: path, migrations: migrations)
     }
 
     public init(
@@ -23,16 +17,24 @@ public final class DatabaseManager: Sendable {
         migrations: (inout DatabaseMigrator) -> Void
     ) throws {
         let path = directory.appending(path: "\(name).sqlite").path()
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let dbQueue = try DatabaseQueue(path: path)
-        self.dbWriter = dbQueue
-        var migrator = DatabaseMigrator()
-        migrations(&migrator)
-        try migrator.migrate(dbQueue)
+        self.dbWriter = try DatabaseManager.createAndMigrate(path: path, migrations: migrations)
     }
 
     private init(dbWriter: any DatabaseWriter) {
         self.dbWriter = dbWriter
+    }
+
+    private static func createAndMigrate(
+        path: String,
+        migrations: (inout DatabaseMigrator) -> Void
+    ) throws -> any DatabaseWriter {
+        let directory = URL(filePath: path).deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let dbQueue = try DatabaseQueue(path: path)
+        var migrator = DatabaseMigrator()
+        migrations(&migrator)
+        try migrator.migrate(dbQueue)
+        return dbQueue
     }
 
     public static func inMemory(

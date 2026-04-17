@@ -107,4 +107,19 @@ struct InMemoryRepositoryTests {
         let repo = InMemoryRepository(items)
         #expect(try repo.count() == 2)
     }
+
+    @Test func transactionRollbackOnError() throws {
+        let repo = InMemoryRepository<TestItem>()
+        try repo.save(TestItem(name: "Existing"))
+
+        struct TestError: Error {}
+        #expect(throws: TestError.self) {
+            try repo.transaction {
+                try repo.save(TestItem(name: "New"))
+                throw TestError()
+            }
+        }
+        // Should have rolled back — only "Existing" remains
+        #expect(try repo.count() == 1)
+    }
 }

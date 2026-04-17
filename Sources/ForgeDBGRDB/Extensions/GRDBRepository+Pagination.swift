@@ -29,15 +29,19 @@ extension GRDBRepository {
         page: Int,
         pageSize: Int
     ) throws -> Page<Model> {
-        let totalCount = try count(filter: filter)
-        let offset = (page - 1) * pageSize
-        let items = try dbWriter.read { db in
-            var request = Model.all()
-            if let filter { request = request.filter(filter) }
-            if let sort { request = request.order(sort) }
-            request = request.limit(pageSize, offset: offset)
-            return try request.fetchAll(db)
+        try dbWriter.read { db in
+            var countRequest = Model.all()
+            if let filter { countRequest = countRequest.filter(filter) }
+            let totalCount = try countRequest.fetchCount(db)
+
+            let offset = (page - 1) * pageSize
+            var itemsRequest = Model.all()
+            if let filter { itemsRequest = itemsRequest.filter(filter) }
+            if let sort { itemsRequest = itemsRequest.order(sort) }
+            itemsRequest = itemsRequest.limit(pageSize, offset: offset)
+            let items = try itemsRequest.fetchAll(db)
+
+            return Page(items: items, page: page, pageSize: pageSize, totalCount: totalCount)
         }
-        return Page(items: items, page: page, pageSize: pageSize, totalCount: totalCount)
     }
 }
