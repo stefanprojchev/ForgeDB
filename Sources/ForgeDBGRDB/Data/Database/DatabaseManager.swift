@@ -2,7 +2,12 @@ import Foundation
 import GRDB
 
 public final class DatabaseManager: Sendable {
+
+    // MARK: - Dependencies
+
     public let dbWriter: any DatabaseWriter
+
+    // MARK: - Init
 
     public init(
         path: String,
@@ -24,6 +29,20 @@ public final class DatabaseManager: Sendable {
         self.dbWriter = dbWriter
     }
 
+    // MARK: - Implementation
+
+    public static func inMemory(
+        migrations: (inout DatabaseMigrator) -> Void
+    ) throws -> DatabaseManager {
+        let dbQueue = try DatabaseQueue()
+        var migrator = DatabaseMigrator()
+        migrations(&migrator)
+        try migrator.migrate(dbQueue)
+        return DatabaseManager(dbWriter: dbQueue)
+    }
+
+    // MARK: - Private
+
     private static func createAndMigrate(
         path: String,
         migrations: (inout DatabaseMigrator) -> Void
@@ -35,15 +54,5 @@ public final class DatabaseManager: Sendable {
         migrations(&migrator)
         try migrator.migrate(dbQueue)
         return dbQueue
-    }
-
-    public static func inMemory(
-        migrations: (inout DatabaseMigrator) -> Void
-    ) throws -> DatabaseManager {
-        let dbQueue = try DatabaseQueue()
-        var migrator = DatabaseMigrator()
-        migrations(&migrator)
-        try migrator.migrate(dbQueue)
-        return DatabaseManager(dbWriter: dbQueue)
     }
 }

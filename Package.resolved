@@ -1,6 +1,15 @@
 {
-  "originHash" : "22f7de5c8f133c92c961b0ed21bc1579e75067c4cccf10824a604f747eb2e9dd",
+  "originHash" : "204f6b8c07a621bed39639807e211b6655d51e958007f20353c127231cf81af3",
   "pins" : [
+    {
+      "identity" : "forgecore",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/stefanprojchev/ForgeCore.git",
+      "state" : {
+        "revision" : "fdcfa42a8b7eb8251cdb39c864894f630ae5b4f3",
+        "version" : "1.0.0"
+      }
+    },
     {
       "identity" : "grdb.swift",
       "kind" : "remoteSourceControl",

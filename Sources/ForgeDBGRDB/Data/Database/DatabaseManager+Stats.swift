@@ -2,16 +2,6 @@ import Foundation
 import GRDB
 import ForgeDB
 
-public struct DBStats: Sendable {
-    public let fileSizeBytes: UInt64
-    public let tables: [TableStats]
-}
-
-public struct TableStats: Sendable {
-    public let name: String
-    public let rowCount: Int
-}
-
 extension DatabaseManager {
     public func stats() throws -> DBStats {
         try dbWriter.read { db in

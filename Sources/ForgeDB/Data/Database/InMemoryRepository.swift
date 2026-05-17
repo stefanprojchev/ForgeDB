@@ -3,7 +3,12 @@ import ForgeCore
 
 public final class InMemoryRepository<Model: Codable & Sendable & Identifiable>: Repository, @unchecked Sendable
 where Model.ID: Hashable & Sendable {
+
+    // MARK: - Dependencies
+
     private let storage = LockedState<[Model.ID: Model]>([:])
+
+    // MARK: - Init
 
     public init() {}
 
@@ -14,6 +19,8 @@ where Model.ID: Hashable & Sendable {
         }
         storage.withLock { $0 = dict }
     }
+
+    // MARK: - Implementation
 
     public func get(_ id: Model.ID) throws -> Model? {
         storage.withLock { $0[id] }

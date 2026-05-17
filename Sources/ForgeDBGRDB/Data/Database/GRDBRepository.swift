@@ -6,7 +6,12 @@ public final class GRDBRepository<Model>: @unchecked Sendable
 where Model: Codable & Sendable & Identifiable & FetchableRecord & PersistableRecord,
       Model.ID: DatabaseValueConvertible & Sendable
 {
+
+    // MARK: - Dependencies
+
     let dbWriter: any DatabaseWriter
+
+    // MARK: - Init
 
     public init(dbWriter: any DatabaseWriter) {
         self.dbWriter = dbWriter
@@ -17,8 +22,7 @@ where Model: Codable & Sendable & Identifiable & FetchableRecord & PersistableRe
     }
 }
 
-// MARK: - Internal db-accepting methods for composition within a single transaction
-
+// Internal db-accepting methods for composition within a single transaction.
 extension GRDBRepository {
     func _save(_ model: Model, in db: Database) throws {
         try model.save(db)
@@ -139,8 +143,6 @@ extension GRDBRepository: QueryableRepository {
         try enumerate(filter: filter, sort: sort, batchSize: batchSize, progress: { _ in }, body: body)
     }
 }
-
-// MARK: - Repository
 
 // Public save/delete/deleteAll methods use unsafeReentrantWrite so they can be
 // called from within transaction() blocks, which already hold a write lock.

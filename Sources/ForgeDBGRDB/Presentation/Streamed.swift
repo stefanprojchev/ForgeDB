@@ -2,29 +2,6 @@ import SwiftUI
 import GRDB
 import ForgeDB
 
-/// Internal observable object that holds the stream subscription and current items.
-@MainActor
-private final class StreamedObserver<Model>: ObservableObject
-where Model: Codable & Sendable & Identifiable & FetchableRecord & PersistableRecord,
-      Model.ID: DatabaseValueConvertible & Sendable
-{
-    @Published var items: [Model] = []
-    private var streamTask: Task<Void, Never>?
-
-    func start(stream: AsyncStream<[Model]>) {
-        guard streamTask == nil else { return }
-        streamTask = Task { [weak self] in
-            for await newItems in stream {
-                self?.items = newItems
-            }
-        }
-    }
-
-    deinit {
-        streamTask?.cancel()
-    }
-}
-
 /// A SwiftUI property wrapper that streams repository results into a view.
 /// Wraps a GRDBRepository's `stream()` into @StateObject-backed live-updating data.
 ///
@@ -44,9 +21,14 @@ public struct Streamed<Model>: @preconcurrency DynamicProperty
 where Model: Codable & Sendable & Identifiable & FetchableRecord & PersistableRecord,
       Model.ID: DatabaseValueConvertible & Sendable
 {
-    @StateObject private var observer: StreamedObserver<Model>
+
+    // MARK: - Dependencies
+
+    @StateObject private var observer: Observer
 
     private let stream: AsyncStream<[Model]>
+
+    // MARK: - Init
 
     public init(
         _ repo: GRDBRepository<Model>,
@@ -55,8 +37,10 @@ where Model: Codable & Sendable & Identifiable & FetchableRecord & PersistableRe
     ) {
         let s = repo.stream(filter: filter, sort: sort)
         self.stream = s
-        _observer = StateObject(wrappedValue: StreamedObserver())
+        _observer = StateObject(wrappedValue: Observer())
     }
+
+    // MARK: - Implementation
 
     public var wrappedValue: [Model] {
         observer.items
@@ -64,5 +48,27 @@ where Model: Codable & Sendable & Identifiable & FetchableRecord & PersistableRe
 
     public func update() {
         observer.start(stream: stream)
+    }
+
+    // MARK: - Private
+
+    /// Internal observable object that holds the stream subscription and current items.
+    @MainActor
+    private final class Observer: ObservableObject {
+        @Published var items: [Model] = []
+        private var streamTask: Task<Void, Never>?
+
+        func start(stream: AsyncStream<[Model]>) {
+            guard streamTask == nil else { return }
+            streamTask = Task { [weak self] in
+                for await newItems in stream {
+                    self?.items = newItems
+                }
+            }
+        }
+
+        deinit {
+            streamTask?.cancel()
+        }
     }
 }

@@ -2,18 +2,6 @@ import Foundation
 import GRDB
 import ForgeDB
 
-public struct HistoryEntry<Model: Codable & Sendable>: Codable, Sendable {
-    public let snapshot: Model
-    public let changedAt: Date
-    public let action: HistoryAction
-}
-
-public enum HistoryAction: String, Codable, Sendable {
-    case insert
-    case update
-    case delete
-}
-
 extension GRDBRepository {
     /// Save model and record a history entry in the companion `_history` table.
     /// The history table must be created in migrations with columns:

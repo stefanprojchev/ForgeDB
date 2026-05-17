@@ -2,15 +2,6 @@ import Foundation
 import GRDB
 import ForgeDB
 
-public struct ImportProgress: Sendable {
-    public let processed: Int
-    public let total: Int
-}
-
-public struct EnumerateProgress: Sendable {
-    public let processed: Int
-}
-
 extension GRDBRepository {
     public func importJSON(
         _ data: Data,
